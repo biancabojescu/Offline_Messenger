@@ -74,7 +74,40 @@ char* getPassword(struct User* user) {
 }
 
 int isAuthenticated(struct User* user) {
-    return user->authenticated;
+    MYSQL* conn = connDatabase();
+
+    if (conn) {
+        char query[500];
+        sprintf(query, "SELECT * FROM users WHERE username = '%s'", getUsername(user));
+
+        if (mysql_query(conn, query)) {
+            fprintf(stderr, "Error querying user in database: %s\n", mysql_error(conn));
+            mysql_close(conn);
+            return -1;
+        }
+
+        MYSQL_RES *result = mysql_store_result(conn);
+        if (result) {
+            if (mysql_num_rows(result) > 0) {
+                MYSQL_ROW row = mysql_fetch_row(result);
+                setAuthenticated(user, atoi(row[3]));  // Assuming id is the first column
+                return user->authenticated;
+            } else {
+                fprintf(stderr, "User not found.\n");
+                mysql_free_result(result);
+                mysql_close(conn);
+                return -1;
+            }
+
+            mysql_free_result(result);
+        }
+
+        mysql_close(conn);
+        return user->authenticated;
+    } else {
+        free(user);
+        return -1;
+    }
 }
 
 struct User* getUserByUsername(const char* username) {
