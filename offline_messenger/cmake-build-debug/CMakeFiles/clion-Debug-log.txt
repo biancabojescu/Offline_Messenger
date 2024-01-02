@@ -1,1 +1,1 @@
-CMakeLists.txt not found in \\wsl.localhost\Ubuntu\home\bianca_bojescu\offline_messenger Select CMakeLists.txt
+CMakeLists.txt not found in C:\Users\bianc\OneDrive\Desktop\Facultate\Anul3\Semestrul1\Retele de calculatoare\Git\Offline_Messenger\offline_messenger Select CMakeLists.txt

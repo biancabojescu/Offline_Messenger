@@ -29,6 +29,8 @@ void handleRegister(thData *);
 void handleLogout(thData *);
 void handleChangePassword(thData *);
 void handleSentMessage(thData *);
+void handleNewMessage(thData *);
+void handleSeeConversations(thData *);
 
 int main() {
     struct sockaddr_in server; // Structura folosita de server
@@ -109,18 +111,11 @@ static void *treat(void *arg) {
             perror("Eroare la citirea comenzii de la client.\n");
             break;
         } else {
+            command[strlen(command)]='\0';
             if(!tdL.user->authenticated){
                 if (strcmp(command, "login") == 0) {
                     handleLogin(&tdL);
                     tdL.user->authenticated = 1;
-                    if (tdL.user->authenticated){
-                        //printf("Aici intra? login dupa ce se face if\n");
-                        int response = 1; // Cod de succes pentru a intra în meniu
-                        if (write(tdL.cl, &response, sizeof(int)) <= 0) {
-                            perror("Eroare la trimiterea raspunsului catre client.\n");
-                        }
-                    }
-                    printf("%s", getPassword(tdL.user));
                 } else if (strcmp(command, "register") == 0) {
                     handleRegister(&tdL);
                 } else if (strcmp(command, "quit") == 0) {
@@ -129,27 +124,25 @@ static void *treat(void *arg) {
                 }
             } else {
                 if (strcmp(command, "logout") == 0) {
-                    //("%s", getPassword(tdL.user));
-                    //printf("Macar aici ajunge");
-                    //tdL.user->authenticated = 0;
                     handleLogout(&tdL);
-
                 } else if(strcmp(command, "change_password") == 0){
                     handleChangePassword(&tdL);
-                }else if(strcmp(command, "send_message") == 0){
+                } else if(strcmp(command, "send_message") == 0){
                     handleSentMessage(&tdL);
+                } else if(strcmp(command,"see_new_messages") == 0){
+                    handleNewMessage(&tdL);
+                } else if(strcmp(command,"see_a_conversation") == 0){
+                    handleSeeConversations(&tdL);
                 } else if (strcmp(command, "quit") == 0) {
                     handleLogout(&tdL);
                     break;
                 } else {
                     printf("[Thread %d] Comanda necunoscuta: %s\n", tdL.idThread, command);
-                    // Trimite mesaj de eroare către client
                 }
             }
         }
     }
 
-    /* Am terminat cu acest client, inchidem conexiunea */
     close((intptr_t)arg);
     return NULL;
 }
@@ -163,10 +156,14 @@ void handleLogin(thData *tdL) {
         return;
     }
 
+    username[strlen(username)]='\0';
+
     if (read(tdL->cl, password, sizeof(password)) <= 0) {
         perror("Eroare la citirea parolei de la client.\n");
         return;
     }
+
+    password[strlen(password)]='\0';
 
     setUsername(tdL->user, username);
     setPassword(tdL->user, password);
@@ -193,12 +190,12 @@ void handleRegister(thData *tdL) {
         perror("Eroare la citirea username-ului de la client.\n");
         return;
     }
-
+    username[strlen(username)]='\0';
     if (read(tdL->cl, password, sizeof(password)) <= 0) {
         perror("Eroare la citirea parolei de la client.\n");
         return;
     }
-
+    password[strlen(password)]='\0';
     setUsername(tdL->user, username);
     setPassword(tdL->user, password);
 
@@ -239,6 +236,7 @@ void handleChangePassword(thData *tdL){
         perror("Eroare la citirea noii parole de la client.\n");
         return;
     }
+    new_password[strlen(new_password)]='\0';
 
     setPassword(tdL->user, new_password);
 
@@ -264,19 +262,19 @@ void handleSentMessage(thData *tdL){
         perror("Eroare la citirea destinatarului de la client.\n");
         return;
     }
+    destinatar_username[strlen(destinatar_username)] = '\0';
 
-    // Citire mesaj
     if (read(tdL->cl, mesaj, sizeof(mesaj)) <= 0) {
         perror("Eroare la citirea mesajului de la client.\n");
         return;
     }
 
-    // Obține informații despre destinatar (User)
+    mesaj[strlen(mesaj)]='\0';
+
     struct User *destinatar = getUserByUsername(destinatar_username);
 
     if (destinatar == NULL) {
-        // Destinatarul nu există în baza de date
-        int response = 0; // Eroare la trimiterea mesajului
+        int response = 0;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
@@ -286,7 +284,6 @@ void handleSentMessage(thData *tdL){
     struct Mesaje *mesajNou = (struct Mesaje *)malloc(sizeof(struct Mesaje));
     setMesaj(mesajNou,mesaj);
 
-    // Apelarea funcției sentMessage pentru a adăuga mesajul în baza de date
     if (sentMessage(tdL->user, destinatar, mesajNou)) {
         int response = 1; // Mesaj trimis cu succes
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
@@ -300,4 +297,102 @@ void handleSentMessage(thData *tdL){
     }
 
     free(mesajNou);
+}
+
+void handleNewMessage(thData* tdL) {
+    struct Mesaje** all_new_messages = see_all_new_messages(tdL->user);
+
+    if (all_new_messages == NULL) {
+        printf("Nu exista mesaje noi pentru %s\n", tdL->user->username);
+    }
+
+    int numMessages = 1;
+    while (all_new_messages[numMessages-1] != NULL) {
+        numMessages++;
+    }
+
+    if (write(tdL->cl, &numMessages, sizeof(int)) <= 0) {
+        perror("Error sending message ID to client.\n");
+    }
+
+    char conversatie[3000];
+    conversatie[0] = '\0';
+
+    for (int i = 0; i < numMessages-1; i++) {
+        int sender_id = getExpeditorId(all_new_messages[i]);
+
+        char *message_text = strdup(getMesaj(all_new_messages[i]));
+
+        message_text[strlen(message_text)] = '\0';
+
+        snprintf(conversatie + strlen(conversatie), sizeof(conversatie) - strlen(conversatie),
+                 "%s: %s\n",
+                 getUsername(getUserById(sender_id)), message_text);
+
+        setSeen(all_new_messages[i], 1);
+    }
+
+    if (write(tdL->cl, conversatie, sizeof(conversatie)) <= 0) {
+        perror("Error sending message to client.\n");
+    }
+
+    for (int i = 0; i < numMessages-1; i++) {
+        free(all_new_messages[i]);
+    }
+    free(all_new_messages);
+}
+
+void handleSeeConversations(thData *tdL){
+    char user2[50];
+    if (read(tdL->cl, user2, sizeof(user2)) <= 0) {
+        perror("Eroare la citirea comenzii de la client.\n");
+    }
+    user2[strlen(user2)]='\0';
+
+    struct Mesaje** all_new_messages = get_a_conversation(tdL->user, getUserByUsername(user2));
+
+    char conversatie[3000];
+    conversatie[0] = '\0';
+
+    if (all_new_messages == NULL) {
+        sprintf(conversatie, "Nu există o conversație cu %s\n", user2);
+        if (write(tdL->cl, conversatie, sizeof(conversatie)) <= 0) {
+            perror("Error sending message to client.\n");
+        }
+        return;
+    }
+
+    int numMessages = 0;
+    while (all_new_messages[numMessages] != NULL) {
+        numMessages++;
+    }
+    printf("Înainte de for? Numărul de mesaje: %d\n", numMessages);
+    for (int i = 0; i < numMessages; i++) {
+        printf("Iterația %d\n", i);
+
+        int sender_id = getExpeditorId(all_new_messages[i]);
+
+        char* message_text = strdup(getMesaj(all_new_messages[i]));
+
+        message_text[strlen(message_text)] = '\0';
+
+        snprintf(conversatie + strlen(conversatie), sizeof(conversatie) - strlen(conversatie),
+                 "%s: %s\n",
+                 getUsername(getUserById(sender_id)), message_text);
+
+
+        printf("%d, %s\n", sender_id, message_text);
+        free(message_text);
+    }
+
+
+    printf("Conversație: %s\n", conversatie);
+    if (write(tdL->cl, conversatie, sizeof(conversatie)) <= 0) {
+        perror("Error sending message to client.\n");
+    }
+
+    for (int i = 0; i < numMessages; i++) {
+        free(all_new_messages[i]);
+    }
+    free(all_new_messages);
 }

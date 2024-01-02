@@ -21,8 +21,10 @@ void setAuthenticated(struct User* user, int authenticated);
 int getIdUser(struct User* user);
 char* getUsername(struct User* user);
 char* getPassword(struct User* user);
+int getAuthenticated(struct User* user);
 int isAuthenticated(struct User* user);
 struct User* getUserByUsername(const char* username);
+struct User* getUserById(int id);
 
 int registerUser(struct User* user);
 int loginUser(struct User* user);

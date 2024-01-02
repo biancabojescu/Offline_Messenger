@@ -45,7 +45,9 @@ int getIdUser(struct User* user) {
         if (result) {
             if (mysql_num_rows(result) > 0) {
                 MYSQL_ROW row = mysql_fetch_row(result);
-                setIdUser(user, atoi(row[0]));  // Assuming id is the first column
+                setIdUser(user, atoi(row[0]));
+                mysql_free_result(result);
+                mysql_close(conn);
                 return user->id;
             } else {
                 fprintf(stderr, "User not found.\n");
@@ -72,6 +74,9 @@ char* getUsername(struct User* user) {
 char* getPassword(struct User* user) {
     return user->password;
 }
+int getAuthenticated(struct User* user){
+    return user->authenticated;
+}
 
 int isAuthenticated(struct User* user) {
     MYSQL* conn = connDatabase();
@@ -90,7 +95,9 @@ int isAuthenticated(struct User* user) {
         if (result) {
             if (mysql_num_rows(result) > 0) {
                 MYSQL_ROW row = mysql_fetch_row(result);
-                setAuthenticated(user, atoi(row[3]));  // Assuming id is the first column
+                setAuthenticated(user, atoi(row[3]));
+                mysql_free_result(result);
+                mysql_close(conn);
                 return user->authenticated;
             } else {
                 fprintf(stderr, "User not found.\n");
@@ -129,12 +136,12 @@ struct User* getUserByUsername(const char* username) {
         if (result) {
             if (mysql_num_rows(result) > 0) {
                 MYSQL_ROW row = mysql_fetch_row(result);
-                setIdUser(user, atoi(row[0]));  // Assuming id is the first column
-                setUsername(user, row[1]);      // Assuming username is the second column
-                setPassword(user, row[2]);      // Assuming password is the third column
-                setAuthenticated(user, atoi(row[3]));  // Assuming authenticated is the fourth column
+                setIdUser(user, atoi(row[0]));
+                setUsername(user, row[1]);
+                setPassword(user, row[2]);
+                setAuthenticated(user, atoi(row[3]));
             } else {
-                fprintf(stderr, "User not found.\n");
+                fprintf(stderr, "User nu exista.\n");
                 mysql_free_result(result);
                 mysql_close(conn);
                 free(user);
@@ -152,9 +159,50 @@ struct User* getUserByUsername(const char* username) {
     }
 }
 
+struct User* getUserById(int id) {
+    MYSQL* conn = connDatabase();
+    struct User* user = (struct User*)malloc(sizeof(struct User));
+
+    if (conn) {
+        char query[500];
+        sprintf(query, "SELECT * FROM users WHERE id = '%d'", id);
+
+        if (mysql_query(conn, query)) {
+            fprintf(stderr, "Error querying user in database: %s\n", mysql_error(conn));
+            mysql_close(conn);
+            free(user);
+            return NULL;
+        }
+
+        MYSQL_RES *result = mysql_store_result(conn);
+        if (result) {
+            if (mysql_num_rows(result) > 0) {
+                MYSQL_ROW row = mysql_fetch_row(result);
+                setIdUser(user, atoi(row[0]));
+                setUsername(user, row[1]);
+                setPassword(user, row[2]);
+                setAuthenticated(user, atoi(row[3]));
+            } else {
+                fprintf(stderr, "User nu exista.\n");
+                mysql_free_result(result);
+                mysql_close(conn);
+                free(user);
+                return NULL;
+            }
+
+            mysql_free_result(result);
+        }
+
+        mysql_close(conn);
+        return user;
+    } else {
+        free(user);
+        return NULL;
+    }
+}
 
 int registerUser(struct User* user) {
-   MYSQL* conn = connDatabase();
+    MYSQL* conn = connDatabase();
 
     if (conn) {
         char query[500];
@@ -176,7 +224,6 @@ int registerUser(struct User* user) {
             } else {
                 mysql_free_result(result);
 
-                // Insert the new user into the database
                 sprintf(query, "INSERT INTO users (username, password) VALUES ('%s', '%s')",
                         getUsername(user), getPassword(user));
 
@@ -202,7 +249,7 @@ int registerUser(struct User* user) {
 int loginUser(struct User* user) {
     MYSQL* conn = connDatabase();
 
-     if (conn) {
+    if (conn) {
         char query[500];
         sprintf(query, "SELECT authenticated FROM users WHERE username = '%s' AND password = '%s'",
                 getUsername(user), getPassword(user));
@@ -220,7 +267,7 @@ int loginUser(struct User* user) {
                 mysql_free_result(result);
 
                 sprintf(query, "UPDATE users SET authenticated = %d WHERE username = '%s' AND password = '%s'",
-                        isAuthenticated(user), getUsername(user), getPassword(user));
+                        getAuthenticated(user), getUsername(user), getPassword(user));
 
                 if (mysql_query(conn, query)) {
                     fprintf(stderr, "Error updating authentication status: %s\n", mysql_error(conn));
@@ -242,9 +289,9 @@ int loginUser(struct User* user) {
 }
 
 int changePassword(struct User* user, char* newPassword) {
-    MYSQL* conn = connDatabase(); 
-    
-     if (conn) {
+    MYSQL* conn = connDatabase();
+
+    if (conn) {
         char query[500];
         sprintf(query, "SELECT id FROM users WHERE username = '%s'",
                 getUsername(user));
@@ -252,7 +299,7 @@ int changePassword(struct User* user, char* newPassword) {
         if (mysql_query(conn, query)) {
             fprintf(stderr, "Error querying user in database: %s\n", mysql_error(conn));
             mysql_close(conn);
-            return 0; 
+            return 0;
         }
 
         MYSQL_RES *result = mysql_store_result(conn);
@@ -267,11 +314,11 @@ int changePassword(struct User* user, char* newPassword) {
                 if (mysql_query(conn, query)) {
                     fprintf(stderr, "Error updating authentication status: %s\n", mysql_error(conn));
                     mysql_close(conn);
-                    return 0; 
+                    return 0;
                 }
 
                 mysql_close(conn);
-                return 1; 
+                return 1;
             }
             mysql_free_result(result);
         }
@@ -286,7 +333,7 @@ int changePassword(struct User* user, char* newPassword) {
 int logoutUser(struct User* user){
     MYSQL* conn = connDatabase();
 
-     if (conn) {
+    if (conn) {
         char query[500];
         sprintf(query, "SELECT authenticated FROM users WHERE username = '%s' AND password = '%s'",
                 getUsername(user), getPassword(user));
@@ -305,7 +352,7 @@ int logoutUser(struct User* user){
                 mysql_free_result(result);
 
                 sprintf(query, "UPDATE users SET authenticated = %d WHERE username = '%s' AND password = '%s'",
-                        isAuthenticated(user), getUsername(user), getPassword(user));
+                        getAuthenticated(user), getUsername(user), getPassword(user));
 
                 if (mysql_query(conn, query)) {
                     fprintf(stderr, "Error updating authentication status: %s\n", mysql_error(conn));

@@ -42,9 +42,9 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         if (!authenticated) {
-            printf("Comenzi disponibile: login, register, quit\n");
+            printf("Comenzi disponibile:\n1)login\n2)register\n3)quit\n");
         } else {
-            printf("Comenzi disponibile: send_message, change_password, logout, quit\n");
+            printf("Comenzi disponibile:\n1)send_message\n2)see_new_messages\n3)see_a_conversation\n4)change_password\n5)logout\n6)quit\n");
         }
         printf("Introduceti comanda: ");
         fflush(stdout);
@@ -118,8 +118,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if (strcmp(command, "quit") == 0) {
                 authenticated = 0;
-
-                break; // Iesire din program
+                break;
             } else {
                 printf("Comanda necunoscuta: %s\n", command);
             }
@@ -153,6 +152,42 @@ int main(int argc, char *argv[]) {
                 } else {
                     printf("Eroare la trimiterea mesajului!\n");
                 }
+            } else if(strcmp(command,"see_new_messages") == 0) {
+                int num_messages;
+
+                if (read(sd, &num_messages, sizeof(int)) <= 0) {
+                    perror("[client] Eroare la citirea numărului de mesaje de la server.\n");
+                    return errno;
+                }
+                printf("Ai %d mesaje noi!\n", (num_messages-1));
+
+                char message_text[3000];
+
+                if (read(sd, message_text, sizeof(message_text)) <= 0) {
+                    perror("[client] Eroare la citirea mesajelor de la server.\n");
+                    break;
+                }
+                message_text[strlen(message_text)] = '\0';
+                printf("%s", message_text);
+            } else if(strcmp(command,"see_a_conversation") == 0) {
+                char user2[50];
+                printf("User: ");
+                fflush(stdout);
+                scanf("%s", user2);
+
+                if (write(sd, user2, sizeof(user2)) <= 0) {
+                    perror("[client]Eroare la write() spre server.\n");
+                    return errno;
+                }
+
+                char message_text[3000];
+
+                if (read(sd, message_text, sizeof(message_text)) <= 0) {
+                    perror("[client] Eroare la citirea mesajelor de la server.\n");
+                    break;
+                }
+                message_text[strlen(message_text)] = '\0';
+                printf("%s", message_text);
             } else if (strcmp(command, "logout") == 0) {
 
                 if (write(sd, command, sizeof(command)) <= 0) {
@@ -204,3 +239,4 @@ int main(int argc, char *argv[]) {
     close(sd);
     return 0;
 }
+
