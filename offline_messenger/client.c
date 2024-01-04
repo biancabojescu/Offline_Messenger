@@ -42,9 +42,9 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         if (!authenticated) {
-            printf("Comenzi disponibile:\n1)login\n2)register\n3)quit\n");
+            printf("\nComenzi disponibile:\n1)login\n2)register\n3)quit\n");
         } else {
-            printf("Comenzi disponibile:\n1)send_message\n2)see_new_messages\n3)see_a_conversation\n4)change_password\n5)logout\n6)quit\n");
+            printf("\nComenzi disponibile:\n1)online_users\n2)send_message\n3)see_new_messages\n4)see_a_conversation\n5)change_password\n6)logout\n7)quit\n");
         }
         printf("Introduceti comanda: ");
         fflush(stdout);
@@ -56,7 +56,6 @@ int main(int argc, char *argv[]) {
         }
         if (!authenticated) {
             if (strcmp(command, "login") == 0) {
-                // Handle login
                 char username[50], password[50];
                 printf("Username: ");
                 fflush(stdout);
@@ -87,7 +86,6 @@ int main(int argc, char *argv[]) {
                     printf("Autentificare esuata!\n");
                 }
             } else if (strcmp(command, "register") == 0) {
-                // Handle register
                 char username[50], password[50];
                 printf("Username: ");
                 fflush(stdout);
@@ -152,6 +150,16 @@ int main(int argc, char *argv[]) {
                 } else {
                     printf("Eroare la trimiterea mesajului!\n");
                 }
+            } else if(strcmp(command,"online_users") == 0){
+                char online_users[3000];
+
+                if (read(sd, online_users, sizeof(online_users)) <= 0) {
+                    perror("[client] Eroare la citirea listei de utilizatori online de la server.\n");
+                    break;
+                }
+
+                online_users[strlen(online_users)] = '\0';
+                printf("Utilizatori online:\n %s\n", online_users);
             } else if(strcmp(command,"see_new_messages") == 0) {
                 int num_messages;
 
@@ -159,7 +167,7 @@ int main(int argc, char *argv[]) {
                     perror("[client] Eroare la citirea numărului de mesaje de la server.\n");
                     return errno;
                 }
-                printf("Ai %d mesaje noi!\n", (num_messages-1));
+                printf("Ai %d mesaje noi!\n", num_messages);
 
                 char message_text[3000];
 
@@ -228,7 +236,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if (strcmp(command, "quit") == 0) {
                 authenticated = 0;
-                break; // Iesire din program
+                break;
             } else {
                 printf("Comanda necunoscuta: %s\n", command);
             }

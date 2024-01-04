@@ -56,7 +56,7 @@ int sentMessage(struct User* expeditor, struct User* destinatar, struct Mesaje* 
                     getExpeditorId(mesaj), getDestinatarId(mesaj), getMesaj(mesaj));
 
             if (mysql_query(conn, query)) {
-                fprintf(stderr, "Error sending message to database: %s\n", mysql_error(conn));
+                fprintf(stderr, "Eroare la insert: %s\n", mysql_error(conn));
                 mysql_close(conn);
                 return 0;
             }
@@ -72,7 +72,7 @@ int sentMessage(struct User* expeditor, struct User* destinatar, struct Mesaje* 
     }
 }
 
-struct Mesaje** see_all_new_messages(struct User* destinatar) {
+char** see_all_new_messages(struct User* destinatar) {
     MYSQL* conn = connDatabase();
 
     if (!conn) {
@@ -87,7 +87,7 @@ struct Mesaje** see_all_new_messages(struct User* destinatar) {
                    "AND mesaje.seen = 0", getIdUser(destinatar));
 
     if (mysql_query(conn, query)) {
-        fprintf(stderr, "Error querying user in database: %s\n", mysql_error(conn));
+        fprintf(stderr, "Eroare la SELECT din baza de date: %s\n", mysql_error(conn));
         mysql_close(conn);
         return NULL;
     }
@@ -95,7 +95,7 @@ struct Mesaje** see_all_new_messages(struct User* destinatar) {
     MYSQL_RES* result = mysql_store_result(conn);
 
     if (!result) {
-        printf("Error retrieving results!\n");
+        printf("Nu exista rezzultate!\n");
         mysql_free_result(result);
         mysql_close(conn);
         return NULL;
@@ -103,19 +103,14 @@ struct Mesaje** see_all_new_messages(struct User* destinatar) {
 
     int num_rows = mysql_num_rows(result);
 
-    struct Mesaje** conversatie = (struct Mesaje**)malloc((num_rows + 1) * sizeof(struct Mesaje*));
+    char** conversatie = (char**)malloc((num_rows + 1) * sizeof(char*));
 
     if (num_rows > 0) {
         int i = 0;
         MYSQL_ROW row;
 
         while ((row = mysql_fetch_row(result)) && (i < num_rows)) {
-            conversatie[i] = (struct Mesaje*)malloc(sizeof(struct Mesaje));
-            setIdMesaje(conversatie[i], atoi(row[0]));
-            setExpeditorId(conversatie[i], atoi(row[1]));
-            setDestinatarId(conversatie[i], atoi(row[2]));
-            setMesaj(conversatie[i], row[3]);
-            setSeen(conversatie[i], 0);
+            conversatie[i] = strdup(row[3]);
             i++;
         }
 
@@ -123,7 +118,7 @@ struct Mesaje** see_all_new_messages(struct User* destinatar) {
 
         sprintf(query, "UPDATE mesaje SET seen = 1 WHERE destinatarId = %d AND seen = 0", getIdUser(destinatar));
         if (mysql_query(conn, query)) {
-            fprintf(stderr, "Error updating message status: %s\n", mysql_error(conn));
+            fprintf(stderr, "Eroare la update: %s\n", mysql_error(conn));
         }
 
         mysql_free_result(result);
@@ -136,14 +131,8 @@ struct Mesaje** see_all_new_messages(struct User* destinatar) {
         return conversatie;
     }
 }
-/*
-int replyToMessage(struct User* expeditor, struct User* destinatar, struct Mesaje* mesaj) {
-    // Implementați aici logica pentru răspuns la un mesaj
-    // Returnați 0 sau alt cod de eroare în caz de eșec
-    return 1; // Exemplu de succes
-}
- */
-struct Mesaje** get_a_conversation(struct User* user1, struct User* user2) {
+
+char** get_a_conversation(struct User* user1, struct User* user2) {
     MYSQL* conn = connDatabase();
 
     if (!conn) {
@@ -155,7 +144,7 @@ struct Mesaje** get_a_conversation(struct User* user1, struct User* user2) {
             , getIdUser(user1), getIdUser(user2), getIdUser(user2), getIdUser(user1));
 
     if (mysql_query(conn, query)) {
-        fprintf(stderr, "Error querying user in database: %s\n", mysql_error(conn));
+        fprintf(stderr, "Eroare la SELECT din baza de date: %s\n", mysql_error(conn));
         mysql_close(conn);
         return NULL;
     }
@@ -163,7 +152,7 @@ struct Mesaje** get_a_conversation(struct User* user1, struct User* user2) {
     MYSQL_RES* result = mysql_store_result(conn);
 
     if (!result) {
-        printf("Error retrieving results!\n");
+        printf("Nu exista rezultate!\n");
         mysql_free_result(result);
         mysql_close(conn);
         return NULL;
@@ -171,19 +160,14 @@ struct Mesaje** get_a_conversation(struct User* user1, struct User* user2) {
 
     int num_rows = mysql_num_rows(result);
 
-    struct Mesaje** conversatie = (struct Mesaje**)malloc((num_rows + 1) * sizeof(struct Mesaje*));
+    char** conversatie = (char**)malloc((num_rows + 1) * sizeof(char*));
 
     if (num_rows > 0) {
         int i = 0;
         MYSQL_ROW row;
 
         while ((row = mysql_fetch_row(result)) && (i < num_rows)) {
-            conversatie[i] = (struct Mesaje*)malloc(sizeof(struct Mesaje));
-            setIdMesaje(conversatie[i], atoi(row[0]));
-            setExpeditorId(conversatie[i], atoi(row[1]));
-            setDestinatarId(conversatie[i], atoi(row[2]));
-            setMesaj(conversatie[i], row[3]);
-            setSeen(conversatie[i], 1);
+            conversatie[i] = strdup(row[3]);
             i++;
         }
 
@@ -191,14 +175,14 @@ struct Mesaje** get_a_conversation(struct User* user1, struct User* user2) {
 
         sprintf(query, "UPDATE mesaje SET seen = 1 WHERE destinatarId = %d AND seen = 0", getIdUser(user1));
         if (mysql_query(conn, query)) {
-            fprintf(stderr, "Error updating message status: %s\n", mysql_error(conn));
+            fprintf(stderr, "Eroare la update: %s\n", mysql_error(conn));
         }
 
         mysql_free_result(result);
         mysql_close(conn);
         return conversatie;
     } else {
-        conversatie[0]=NULL;
+        conversatie[0] = NULL;
         mysql_free_result(result);
         mysql_close(conn);
         return conversatie;

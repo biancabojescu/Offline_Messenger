@@ -26,9 +26,8 @@ char* getMesaj(struct Mesaje* mesaj);
 int isSeen(struct Mesaje* mesaj);
 
 int sentMessage(struct User* expeditor, struct User* destinatar, struct Mesaje* mesaj);
-struct Mesaje** see_all_new_messages(struct User* destinatar);
-//int replyToMessage(struct User* expeditor, struct User* destinatar, struct Mesaje* mesaj);
-struct Mesaje** get_a_conversation(struct User* user1, struct User* user2);
+char** see_all_new_messages(struct User* destinatar);
+char** get_a_conversation(struct User* user1, struct User* user2);
 
 
 #endif

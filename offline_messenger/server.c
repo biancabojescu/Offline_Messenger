@@ -31,6 +31,7 @@ void handleChangePassword(thData *);
 void handleSentMessage(thData *);
 void handleNewMessage(thData *);
 void handleSeeConversations(thData *);
+void  handleOnlineUsers(thData *);
 
 int main() {
     struct sockaddr_in server; // Structura folosita de server
@@ -127,6 +128,8 @@ static void *treat(void *arg) {
                     handleLogout(&tdL);
                 } else if(strcmp(command, "change_password") == 0){
                     handleChangePassword(&tdL);
+                } else if(strcmp(command, "online_users") == 0){
+                    handleOnlineUsers(&tdL);
                 } else if(strcmp(command, "send_message") == 0){
                     handleSentMessage(&tdL);
                 } else if(strcmp(command,"see_new_messages") == 0){
@@ -169,14 +172,12 @@ void handleLogin(thData *tdL) {
     setPassword(tdL->user, password);
 
     if (loginUser(tdL->user)) {
-        //printf("Returneaza 1");
-        int response = 1; // Autentificare cu succes
+        int response = 1;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
     } else {
-        //printf("Returneaza 0");
-        int response = 0; // Eroare la autentificare
+        int response = 0;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
@@ -186,27 +187,29 @@ void handleLogin(thData *tdL) {
 void handleRegister(thData *tdL) {
     char username[50];
     char password[50];
+
     if (read(tdL->cl, username, sizeof(username)) <= 0) {
         perror("Eroare la citirea username-ului de la client.\n");
         return;
     }
     username[strlen(username)]='\0';
+
     if (read(tdL->cl, password, sizeof(password)) <= 0) {
         perror("Eroare la citirea parolei de la client.\n");
         return;
     }
     password[strlen(password)]='\0';
+
     setUsername(tdL->user, username);
     setPassword(tdL->user, password);
 
     if (registerUser(tdL->user)) {
-        //printf("Registerul merge?");
-        int response = 1; // Inregistrare cu succes
+        int response = 1;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
     } else {
-        int response = 0; // Eroare la inregistrare
+        int response = 0;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
@@ -214,15 +217,13 @@ void handleRegister(thData *tdL) {
 }
 
 void handleLogout(thData *tdL) {
-    //printf("Intra aici handleLogout");
     if (logoutUser(tdL->user)) {
-        //printf("se face logout");
-        int response = 1; // Delogare cu succes
+        int response = 1;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
     } else {
-        int response = 0; // Eroare la delogare
+        int response = 0;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
@@ -246,7 +247,7 @@ void handleChangePassword(thData *tdL){
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
     } else {
-        int response = 0; // Eroare la inregistrare
+        int response = 0;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
@@ -257,7 +258,6 @@ void handleSentMessage(thData *tdL){
     char destinatar_username[50];
     char mesaj[500];
 
-    // Citire destinatar
     if (read(tdL->cl, destinatar_username, sizeof(destinatar_username)) <= 0) {
         perror("Eroare la citirea destinatarului de la client.\n");
         return;
@@ -268,7 +268,6 @@ void handleSentMessage(thData *tdL){
         perror("Eroare la citirea mesajului de la client.\n");
         return;
     }
-
     mesaj[strlen(mesaj)]='\0';
 
     struct User *destinatar = getUserByUsername(destinatar_username);
@@ -285,12 +284,12 @@ void handleSentMessage(thData *tdL){
     setMesaj(mesajNou,mesaj);
 
     if (sentMessage(tdL->user, destinatar, mesajNou)) {
-        int response = 1; // Mesaj trimis cu succes
+        int response = 1;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
     } else {
-        int response = 0; // Eroare la trimiterea mesajului
+        int response = 0;
         if (write(tdL->cl, &response, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea raspunsului catre client.\n");
         }
@@ -300,14 +299,18 @@ void handleSentMessage(thData *tdL){
 }
 
 void handleNewMessage(thData* tdL) {
-    struct Mesaje** all_new_messages = see_all_new_messages(tdL->user);
+    char** all_new_messages = see_all_new_messages(tdL->user);
 
-    if (all_new_messages == NULL) {
+    size_t conversatie_size = 3000;
+    char* conversatie = (char *)malloc(conversatie_size);
+    conversatie[0] = '\0';
+
+    if (all_new_messages == NULL || all_new_messages[0] == NULL) {
         printf("Nu exista mesaje noi pentru %s\n", tdL->user->username);
     }
 
-    int numMessages = 1;
-    while (all_new_messages[numMessages-1] != NULL) {
+    int numMessages = 0;
+    while (all_new_messages[numMessages] != NULL) {
         numMessages++;
     }
 
@@ -315,21 +318,16 @@ void handleNewMessage(thData* tdL) {
         perror("Error sending message ID to client.\n");
     }
 
-    char conversatie[3000];
-    conversatie[0] = '\0';
 
     for (int i = 0; i < numMessages-1; i++) {
-        int sender_id = getExpeditorId(all_new_messages[i]);
+        char temp[30000];
+        sprintf(temp, "%s\n", all_new_messages[i]);
 
-        char *message_text = strdup(getMesaj(all_new_messages[i]));
-
-        message_text[strlen(message_text)] = '\0';
-
-        snprintf(conversatie + strlen(conversatie), sizeof(conversatie) - strlen(conversatie),
-                 "%s: %s\n",
-                 getUsername(getUserById(sender_id)), message_text);
-
-        setSeen(all_new_messages[i], 1);
+        if (strlen(conversatie) + strlen(temp) < conversatie_size) {
+            strcat(conversatie, temp);
+        } else {
+            printf("Eroare: Spațiu insuficient pentru adăugarea unui mesaj!\n");
+        }
     }
 
     if (write(tdL->cl, conversatie, sizeof(conversatie)) <= 0) {
@@ -340,6 +338,7 @@ void handleNewMessage(thData* tdL) {
         free(all_new_messages[i]);
     }
     free(all_new_messages);
+    free(conversatie);
 }
 
 void handleSeeConversations(thData *tdL){
@@ -349,14 +348,15 @@ void handleSeeConversations(thData *tdL){
     }
     user2[strlen(user2)]='\0';
 
-    struct Mesaje** all_new_messages = get_a_conversation(tdL->user, getUserByUsername(user2));
+    char** all_new_messages = get_a_conversation(tdL->user, getUserByUsername(user2));
 
-    char conversatie[3000];
+    size_t conversatie_size = 3000;
+    char* conversatie = (char *)malloc(conversatie_size);
     conversatie[0] = '\0';
 
-    if (all_new_messages == NULL) {
+    if (all_new_messages == NULL || all_new_messages[0] == NULL) {
         sprintf(conversatie, "Nu există o conversație cu %s\n", user2);
-        if (write(tdL->cl, conversatie, sizeof(conversatie)) <= 0) {
+        if (write(tdL->cl, conversatie, strlen(conversatie)) <= 0) {
             perror("Error sending message to client.\n");
         }
         return;
@@ -366,33 +366,42 @@ void handleSeeConversations(thData *tdL){
     while (all_new_messages[numMessages] != NULL) {
         numMessages++;
     }
-    printf("Înainte de for? Numărul de mesaje: %d\n", numMessages);
-    for (int i = 0; i < numMessages; i++) {
-        printf("Iterația %d\n", i);
 
-        int sender_id = getExpeditorId(all_new_messages[i]);
+    for (int i = 0; i < numMessages-1; i++) {
+        char temp[30000];
+        sprintf(temp, "%s\n", all_new_messages[i]);
 
-        char* message_text = strdup(getMesaj(all_new_messages[i]));
-
-        message_text[strlen(message_text)] = '\0';
-
-        snprintf(conversatie + strlen(conversatie), sizeof(conversatie) - strlen(conversatie),
-                 "%s: %s\n",
-                 getUsername(getUserById(sender_id)), message_text);
-
-
-        printf("%d, %s\n", sender_id, message_text);
-        free(message_text);
+        if (strlen(conversatie) + strlen(temp) < conversatie_size) {
+            strcat(conversatie, temp);
+        } else {
+            printf("Eroare: Spațiu insuficient pentru adăugarea unui mesaj!\n");
+        }
     }
 
-
-    printf("Conversație: %s\n", conversatie);
-    if (write(tdL->cl, conversatie, sizeof(conversatie)) <= 0) {
+    if (write(tdL->cl, conversatie, strlen(conversatie)) <= 0) {
         perror("Error sending message to client.\n");
     }
 
-    for (int i = 0; i < numMessages; i++) {
+
+    for (int i = 0; i < numMessages-1; i++) {
         free(all_new_messages[i]);
     }
     free(all_new_messages);
+    free(conversatie);
+}
+
+void handleOnlineUsers(thData *tdL) {
+    char* onlineUsers = online_users();
+
+    if (onlineUsers != NULL) {
+        if (write(tdL->cl, onlineUsers, strlen(onlineUsers)) <= 0) {
+            perror("Eroare la trimiterea utilizatorilor online către client.\n");
+        }
+        free(onlineUsers);
+    } else {
+        const char* errorMessage = "Eroare la obținerea utilizatorilor online.";
+        if (write(tdL->cl, errorMessage, strlen(errorMessage)) <= 0) {
+            perror("Eroare la trimiterea mesajului de eroare către client.\n");
+        }
+    }
 }

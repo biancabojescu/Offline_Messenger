@@ -29,6 +29,7 @@ struct User* getUserById(int id);
 int registerUser(struct User* user);
 int loginUser(struct User* user);
 int changePassword(struct User* user, char* newPassword);
+char* online_users();
 int logoutUser(struct User* user);
 
 #endif 
