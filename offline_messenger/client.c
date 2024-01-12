@@ -57,6 +57,8 @@ int main(int argc, char *argv[]) {
         if (!authenticated) {
             if (strcmp(command, "login") == 0) {
                 char username[50], password[50];
+                memset(username, 0, sizeof(username));
+                memset(password, 0, sizeof(password));
                 printf("Username: ");
                 fflush(stdout);
                 scanf("%s", username);
@@ -87,6 +89,8 @@ int main(int argc, char *argv[]) {
                 }
             } else if (strcmp(command, "register") == 0) {
                 char username[50], password[50];
+                memset(username, 0, sizeof(username));
+                memset(password, 0, sizeof(password));
                 printf("Username: ");
                 fflush(stdout);
                 scanf("%s", username);
@@ -123,6 +127,8 @@ int main(int argc, char *argv[]) {
         } else {
             if (strcmp(command, "send_message") == 0) {
                 char destinatar_username[50], mesaj[500];
+                memset(destinatar_username, 0, sizeof(destinatar_username));
+                memset(mesaj, 0, sizeof(mesaj));
                 printf("Destinatar: ");
                 fflush(stdout);
                 scanf("%s", destinatar_username);
@@ -152,7 +158,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if(strcmp(command,"online_users") == 0){
                 char online_users[3000];
-
+                memset(online_users, 0, sizeof(online_users));
                 if (read(sd, online_users, sizeof(online_users)) <= 0) {
                     perror("[client] Eroare la citirea listei de utilizatori online de la server.\n");
                     break;
@@ -170,6 +176,7 @@ int main(int argc, char *argv[]) {
                 printf("Ai %d mesaje noi!\n", num_messages);
 
                 char message_text[3000];
+                memset(message_text, 0, sizeof(message_text));
 
                 if (read(sd, message_text, sizeof(message_text)) <= 0) {
                     perror("[client] Eroare la citirea mesajelor de la server.\n");
@@ -179,6 +186,7 @@ int main(int argc, char *argv[]) {
                 printf("%s", message_text);
             } else if(strcmp(command,"see_a_conversation") == 0) {
                 char user2[50];
+                memset(user2, 0, sizeof(user2));
                 printf("User: ");
                 fflush(stdout);
                 scanf("%s", user2);
@@ -189,7 +197,7 @@ int main(int argc, char *argv[]) {
                 }
 
                 char message_text[3000];
-
+                memset(message_text, 0, sizeof(message_text));
                 if (read(sd, message_text, sizeof(message_text)) <= 0) {
                     perror("[client] Eroare la citirea mesajelor de la server.\n");
                     break;
@@ -216,6 +224,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if(strcmp(command, "change_password") == 0) {
                 char new_password[50];
+                memset(new_password,0,sizeof(new_password));
                 printf("New_password: ");
                 fflush(stdout);
                 scanf("%s", new_password);

@@ -40,13 +40,15 @@ int main() {
     pthread_t th[100]; // Identificatorii thread-urilor care se vor crea
     int i = 0;
 
-    /* Crearea unui socket */
+    /* Crearea unui socket
+     * AF_INET protocolul IPv4
+     * SOCK_STREAM protocolul TCP*/
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("[server]Eroare la socket().\n");
         return errno;
     }
 
-    /* Utilizarea optiunii SO_REUSEADDR */
+    /* Utilizarea optiunii SO_REUSEADDR - reutilizarea adresei locale*/
     int on = 1;
     setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
@@ -57,12 +59,12 @@ int main() {
     /* Umplem structura folosita de server */
     /* Stabilirea familiei de socket-uri */
     server.sin_family = AF_INET;
-    /* Acceptam orice adresa */
+    /* Acceptam orice adresa disponibila*/
     server.sin_addr.s_addr = htonl(INADDR_ANY);
     /* Utilizam un port utilizator */
     server.sin_port = htons(PORT);
 
-    /* Atasam socketul */
+    /* Atasam socketul pt a specifica la ce adresa IP si port se vor asculta clientii */
     if (bind(sd, (struct sockaddr *)&server, sizeof(struct sockaddr)) == -1) {
         perror("[server]Eroare la bind().\n");
         return errno;
@@ -104,7 +106,7 @@ static void *treat(void *arg) {
     tdL = *((struct thData *)arg);
     printf("[Thread] - %d - Asteptam comanda...\n", tdL.idThread);
     fflush(stdout);
-    pthread_detach(pthread_self());
+    pthread_detach(pthread_self()); //se evita crearea unui zombie thread
 
     while (1) {
         char command[31];
@@ -319,55 +321,7 @@ void handleNewMessage(thData* tdL) {
     }
 
 
-    for (int i = 0; i < numMessages-1; i++) {
-        char temp[30000];
-        sprintf(temp, "%s\n", all_new_messages[i]);
-
-        if (strlen(conversatie) + strlen(temp) < conversatie_size) {
-            strcat(conversatie, temp);
-        } else {
-            printf("Eroare: Spațiu insuficient pentru adăugarea unui mesaj!\n");
-        }
-    }
-
-    if (write(tdL->cl, conversatie, sizeof(conversatie)) <= 0) {
-        perror("Error sending message to client.\n");
-    }
-
-    for (int i = 0; i < numMessages-1; i++) {
-        free(all_new_messages[i]);
-    }
-    free(all_new_messages);
-    free(conversatie);
-}
-
-void handleSeeConversations(thData *tdL){
-    char user2[50];
-    if (read(tdL->cl, user2, sizeof(user2)) <= 0) {
-        perror("Eroare la citirea comenzii de la client.\n");
-    }
-    user2[strlen(user2)]='\0';
-
-    char** all_new_messages = get_a_conversation(tdL->user, getUserByUsername(user2));
-
-    size_t conversatie_size = 3000;
-    char* conversatie = (char *)malloc(conversatie_size);
-    conversatie[0] = '\0';
-
-    if (all_new_messages == NULL || all_new_messages[0] == NULL) {
-        sprintf(conversatie, "Nu există o conversație cu %s\n", user2);
-        if (write(tdL->cl, conversatie, strlen(conversatie)) <= 0) {
-            perror("Error sending message to client.\n");
-        }
-        return;
-    }
-
-    int numMessages = 0;
-    while (all_new_messages[numMessages] != NULL) {
-        numMessages++;
-    }
-
-    for (int i = 0; i < numMessages-1; i++) {
+    for (int i = 0; i < numMessages; i++) {
         char temp[30000];
         sprintf(temp, "%s\n", all_new_messages[i]);
 
@@ -382,8 +336,60 @@ void handleSeeConversations(thData *tdL){
         perror("Error sending message to client.\n");
     }
 
+    for (int i = 0; i < numMessages; i++) {
+        free(all_new_messages[i]);
+    }
+    free(all_new_messages);
+    free(conversatie);
+}
 
-    for (int i = 0; i < numMessages-1; i++) {
+void handleSeeConversations(thData *tdL){
+    char user2[50];
+    memset(user2, 0, sizeof(user2));
+    if (read(tdL->cl, user2, sizeof(user2)) <= 0) {
+        perror("Eroare la citirea comenzii de la client.\n");
+    }
+    user2[strlen(user2)]='\0';
+
+    char** all_new_messages = get_a_conversation(tdL->user, getUserByUsername(user2));
+
+    size_t conversatie_size = 3000;
+    char* conversatie = (char *)malloc(conversatie_size);
+    memset(conversatie, 0, conversatie_size);
+    conversatie[0] = '\0';
+
+    if (all_new_messages == NULL || all_new_messages[0] == NULL) {
+        sprintf(conversatie, "Nu există o conversație cu %s\n", user2);
+        if (write(tdL->cl, conversatie, strlen(conversatie)) <= 0) {
+            perror("Error sending message to client.\n");
+        }
+        //free(conversatie);
+        return;
+    }
+
+    int numMessages = 0;
+    while (all_new_messages[numMessages] != NULL) {
+        numMessages++;
+    }
+
+    for (int i = 0; i < numMessages; i++) {
+        char temp[30000];
+        memset(temp,0, sizeof(temp));
+        sprintf(temp, "%s\n", all_new_messages[i]);
+
+        if (strlen(conversatie) + strlen(temp) < conversatie_size) {
+            strcat(conversatie, temp);
+        } else {
+            printf("Eroare: Spațiu insuficient pentru adăugarea unui mesaj!\n");
+        }
+    }
+
+    if (write(tdL->cl, conversatie, strlen(conversatie)) <= 0) {
+        perror("Error sending message to client.\n");
+    }
+
+
+    for (int i = 0; i < numMessages; i++) {
         free(all_new_messages[i]);
     }
     free(all_new_messages);

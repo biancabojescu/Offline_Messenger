@@ -111,6 +111,7 @@ char** see_all_new_messages(struct User* destinatar) {
 
         while ((row = mysql_fetch_row(result)) && (i < num_rows)) {
             conversatie[i] = strdup(row[3]);
+            //printf("%s", conversatie[i]);
             i++;
         }
 
@@ -123,6 +124,9 @@ char** see_all_new_messages(struct User* destinatar) {
 
         mysql_free_result(result);
         mysql_close(conn);
+        /*for(int j= 0; j<num_rows; j++){
+            printf("%s",conversatie[j]);
+        }*/
         return conversatie;
     } else {
         conversatie[0]=NULL;

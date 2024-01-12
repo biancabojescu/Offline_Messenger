@@ -198,7 +198,7 @@ struct User* getUserById(int id) {
 }
 
 int registerUser(struct User* user) {
-    MYSQL* conn = connDatabase();
+   MYSQL* conn = connDatabase();
 
     if (conn) {
         char query[500];
@@ -245,7 +245,7 @@ int registerUser(struct User* user) {
 int loginUser(struct User* user) {
     MYSQL* conn = connDatabase();
 
-    if (conn) {
+     if (conn) {
         char query[500];
         sprintf(query, "SELECT authenticated FROM users WHERE username = '%s' AND password = '%s'",
                 getUsername(user), getPassword(user));
@@ -285,9 +285,9 @@ int loginUser(struct User* user) {
 }
 
 int changePassword(struct User* user, char* newPassword) {
-    MYSQL* conn = connDatabase();
-
-    if (conn) {
+    MYSQL* conn = connDatabase(); 
+    
+     if (conn) {
         char query[500];
         sprintf(query, "SELECT id FROM users WHERE username = '%s'",
                 getUsername(user));
@@ -295,7 +295,7 @@ int changePassword(struct User* user, char* newPassword) {
         if (mysql_query(conn, query)) {
             fprintf(stderr, "Eroare la SELECT din baza de date: %s\n", mysql_error(conn));
             mysql_close(conn);
-            return 0;
+            return 0; 
         }
 
         MYSQL_RES *result = mysql_store_result(conn);
@@ -310,11 +310,11 @@ int changePassword(struct User* user, char* newPassword) {
                 if (mysql_query(conn, query)) {
                     fprintf(stderr, "Eroare la update: %s\n", mysql_error(conn));
                     mysql_close(conn);
-                    return 0;
+                    return 0; 
                 }
 
                 mysql_close(conn);
-                return 1;
+                return 1; 
             }
             mysql_free_result(result);
         }
@@ -329,7 +329,7 @@ int changePassword(struct User* user, char* newPassword) {
 int logoutUser(struct User* user){
     MYSQL* conn = connDatabase();
 
-    if (conn) {
+     if (conn) {
         char query[500];
         sprintf(query, "SELECT authenticated FROM users WHERE username = '%s' AND password = '%s'",
                 getUsername(user), getPassword(user));
