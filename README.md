@@ -5,6 +5,7 @@ The project involves developing a client/server application that allows the exch
 
 ## Compilation Commands:
 
+
 ### Database:
 
 sudo service mysql start
